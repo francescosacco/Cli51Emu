@@ -11,6 +11,7 @@ class Core
         
         uint8_t readBankedRegister( registerOffset_t reg , Ram * ramObj ) ;
         void writeBankedRegister( registerOffset_t reg , Ram * ramObj , uint8_t data ) ;
+        bool parity( uint8_t in ) ;
     
     public :
         Core() ;

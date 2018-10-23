@@ -109,6 +109,20 @@ void Core::writeBankedRegister( registerOffset_t reg , Ram * ramObj , uint8_t da
     ramObj->write( addr8 , data ) ;
 }
 
+bool Core::parity( uint8_t in )
+{
+    uint8_t parity = in ;
+    bool ret ;
+
+    parity ^= ( ( parity >> 4 ) | ( parity << 4 ) ) ;
+    parity ^=   ( parity >> 2 ) ;
+    parity ^=   ( parity >> 1 ) ;
+
+    ret = ( parity & 1 ) ? ( true ) : ( false ) ;
+    return( ret ) ;
+}
+
+
 Core::Core()
 {
     cout << "\t\tCore Construtor" << endl ;
@@ -319,7 +333,40 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc = addr16 ;    
         break ;
+    // RRC A
     case 0x13 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  0  |  1  |  0  |  0  |  1  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         *
+         *              7     6     5     4     3     2     1     0
+         *           +-----+-----+-----+-----+-----+-----+-----+-----+     +-----+
+         * ACC +-->--+  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 +-->--+  C  +-->--+
+         *     |     +-----+-----+-----+-----+-----+-----+-----+-----+     +-----+     |
+         *     |                                                                       |
+         *     +-----<-----<-----<-----<-----<-----<-----<-----<-----<-----<-----<-----+
+         *
+         **********/
+        acc  = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        
+        tmp8 = acc ;
+        acc >>= 1 ;
+        acc  |= ( tmpBit ) ? ( 0x80 ) : ( 0x00 ) ;
+        
+        tmpBit = ( tmp8 & 0x01 ) ? ( true ) : ( false ) ;
+
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        
+        tmpBit = parity( acc ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+        
+        pc++ ;
         break ;
     // DEC A
     case 0x14 :
