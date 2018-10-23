@@ -202,6 +202,31 @@ uint8_t Ram::read( uint8_t addr )
 /**********
  *
  *        7     6     5     4     3     2     1     0
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * F0h | F7h | F6h | F5h | F4h | F3h | F2h | F1h | F0h | B
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * E0h | E7h | E6h | E5h | E4h | E3h | E2h | E1h | E0h | ACC
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * D0h | D7h | D6h | D5h | D4h | D3h | D2h | D1h | D0h | PSW
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * B8h | BFh | BEh | BDh | BCh | BBh | BAh | B9h | B8h | IP
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * B0h | B7h | B6h | B5h | B4h | B3h | B2h | B1h | B0h | P3
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * A8h | AFh | AEh | ADh | ACh | ABh | AAh | A9h | A8h | IE
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * A0h | A7h | A6h | A5h | A4h | A3h | A2h | A1h | A0h | P2
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * 98h | 9Fh | 9Eh | 9Dh | 9Ch | 9Bh | 9Ah | 99h | 98h | SCON
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * 90h | 97h | 96h | 95h | 94h | 93h | 92h | 91h | 90h | P1
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * 88h | 8Fh | 8Eh | 8Dh | 8Ch | 8Bh | 8Ah | 89h | 88h | TCON
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ * 80h | 87h | 86h | 85h | 84h | 83h | 82h | 81h | 80h | P0
+ *     +-----+-----+-----+-----+-----+-----+-----+-----+
+ *
+ *        7     6     5     4     3     2     1     0
  * 30h |     |     |     |     |     |     |     |     |
  *     +-----+-----+-----+-----+-----+-----+-----+-----+
  * 2Fh | 7Fh | 7Eh | 7Dh | 7Ch | 7Bh | 7Ah | 79h | 78h |
@@ -229,14 +254,41 @@ void Ram::writeBit( uint8_t addr , bool data )
 {
     uint8_t addrByte , addrBit , tmp ;
     
-    if( addr >= 0x80 )
+    if( addr < 0x80 )
     {
-        return ;
+        addrByte = ( addr / 8 ) + 0x20 ;
+        addrBit  = addr % 8 ;
     }
-    
-    addrByte = addr / 8 ;
-    addrBit  = addr % 8 ;
-    
+    else if( ( addr >= 0x80 ) && ( addr < 0xC0 ) )
+    {
+        /**********
+         *
+         *       7     6     5     4     3     2     1     0
+         *    +-----+-----+-----+-----+-----+-----+-----+-----+
+         *    |     |     |     |     |     |     |     |     |
+         *    +-----+-----+-----+-----+-----+-----+-----+-----+
+         *     \_____________ _____________/ \_______ _______/
+         *                   |                       |
+         *                   |                       +--------> Bit Address  - Mask 07h
+         *                   +--------------------------------> Byte Address - Mask F8h
+         *
+         **********/
+        
+        addrByte = addr & 0xF8 ;
+        addrBit  = addr & 0x07 ;
+    }
+    else
+    {
+        // There's no address Cxh, or from x8h to xFh.
+        if( ( ( addr & 0xF0 ) == 0xC0 ) || ( ( addr & 0x08 ) == 0x80 ) )
+        {
+            return ;
+        }
+
+        addrByte = addr & 0xF0 ;
+        addrBit  = addr & 0x07 ;
+    }
+ 
     tmp = read( addrByte ) ;
     if( data )
     {
@@ -246,7 +298,7 @@ void Ram::writeBit( uint8_t addr , bool data )
     {
         tmp &= ~( 1 << addrBit ) ;
     }
- 
+
     write( addrByte , tmp ) ;
 }
 
@@ -257,13 +309,42 @@ bool Ram::readBit( uint8_t addr )
 
     if( addr < 0x80 )
     {
-        addrByte = addr / 8 ;
+        addrByte = ( addr / 8 ) + 0x20 ;
         addrBit  = addr % 8 ;
-
-        tmp = read( addrByte ) ;
-
-        ret = ( tmp & ( 1 << addrBit ) ) ? ( true ) : ( false ) ;
     }
+    else if( ( addr >= 0x80 ) && ( addr < 0xC0 ) )
+    {
+        /**********
+         *
+         *       7     6     5     4     3     2     1     0
+         *    +-----+-----+-----+-----+-----+-----+-----+-----+
+         *    |     |     |     |     |     |     |     |     |
+         *    +-----+-----+-----+-----+-----+-----+-----+-----+
+         *     \_____________ _____________/ \_______ _______/
+         *                   |                       |
+         *                   |                       +--------> Bit Address  - Mask 07h
+         *                   +--------------------------------> Byte Address - Mask F8h
+         *
+         **********/
+        
+        addrByte = addr & 0xF8 ;
+        addrBit  = addr & 0x07 ;
+    }
+    else
+    {
+        // There's no address Cxh, or from x8h to xFh.
+        if( ( ( addr & 0xF0 ) == 0xC0 ) || ( ( addr & 0x08 ) == 0x80 ) )
+        {
+            return( ret ) ;
+        }
+
+        addrByte = addr & 0xF0 ;
+        addrBit  = addr & 0x07 ;
+    }
+
+    tmp = read( addrByte ) ;
+
+    ret = ( tmp & ( 1 << addrBit ) ) ? ( true ) : ( false ) ;
 
     return( ret ) ;
 }

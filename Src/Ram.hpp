@@ -26,6 +26,14 @@
 #define SFR_ADDR_ACC                             ( ( uint8_t ) 0xE0 )
 #define SFR_ADDR_B                               ( ( uint8_t ) 0xF0 )
 
+#define SFR_ADDR_PSW_C                           ( ( uint8_t ) 0xD7 )
+#define SFR_ADDR_PSW_AC                          ( ( uint8_t ) 0xD6 )
+#define SFR_ADDR_PSW_F0                          ( ( uint8_t ) 0xD5 )
+#define SFR_ADDR_PSW_RS1                         ( ( uint8_t ) 0xD4 )
+#define SFR_ADDR_PSW_RS0                         ( ( uint8_t ) 0xD3 )
+#define SFR_ADDR_PSW_OV                          ( ( uint8_t ) 0xD2 )
+#define SFR_ADDR_PSW_P                           ( ( uint8_t ) 0xD0 )
+
 typedef struct _SFRBLOCK_T_
 {
     uint8_t addr ;
