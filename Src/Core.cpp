@@ -363,13 +363,18 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
         ramObj->write( SFR_ADDR_ACC , acc ) ;
         
-        tmpBit = parity( acc ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
-        
         pc++ ;
         break ;
     // DEC A
     case 0x14 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  0  |  1  |  0  |  1  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
         acc = ramObj->read( SFR_ADDR_ACC ) ;
         acc-- ;
         ramObj->write( SFR_ADDR_ACC , acc ) ;
@@ -378,6 +383,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     // DEC direct
     case 0x15 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  0  |  1  |  0  |  1  |  0  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
         addr8 = flashObj->read( pc + 1 ) ;
         tmp8 = ramObj->read( addr8 ) ;
         tmp8-- ;
@@ -444,6 +457,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     // JB bitAddr,offset
     case 0x20 :
+        /**********
+         *
+         *           17    16    15    14    13    12    11    10    0F    0E    0D    0C    0B    0A    09    08    07    06    05    04    03    02    01    00
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  0  |  0  |  0  |  0  |  0  |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
         addr8  = flashObj->read( pc + 1 ) ;
         addr16 = ( uint16_t ) flashObj->read( pc + 2 ) ;
         
@@ -1269,4 +1290,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         pc++ ;
         break ;
     }
+
+    /**********
+     *
+     * Parity Flag.
+     * Set/Cleared by hardware each instruction cycle
+     * to indicate an odd/even number of 1 bits in the accumulator.
+     *
+     **********/
+    tmpBit = parity( acc ) ;
+    ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 }
