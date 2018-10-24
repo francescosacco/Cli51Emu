@@ -541,7 +541,38 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         
         pc++ ;
         break ;
+    // ADD A,#data
     case 0x24 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  0  |  0  |  1  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        tmp8 = ( uint16_t ) flashObj->read( pc + 1 ) ;
+        acc  = ramObj->read( SFR_ADDR_ACC ) ;
+
+        // Check Auxiliary Flag.
+        tmp16  = ( uint16_t ) ( tmp8 & 0x0F ) ;
+        tmp16 += ( uint16_t ) ( acc  & 0x0F ) ;
+        tmpBit = ( tmp16 & 0x10 ) ? ( true ) : ( false ) ; // Check bit 4 - 0001.0000
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        // Execute ADD.
+        tmp16 = ( ( uint16_t ) acc ) + ( ( uint16_t ) tmp8 )  ;
+        acc   = ( uint8_t ) tmp16 ;
+
+        ramObj->write( SFR_ADDR_ACC , acc ) ;
+
+        // Check Carry Flag.
+        tmpBit = ( tmp16 & 0x0100 ) ? ( true ) : ( false ) ; // Check bit 8 - 0000.0001.0000.0000
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+                                
+        pc += 2 ;
         break ;
     case 0x25 :
         break ;
