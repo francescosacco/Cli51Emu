@@ -122,6 +122,31 @@ bool Core::parity( uint8_t in )
     return( ret ) ;
 }
 
+bool Core::isBitSet( uint8_t data , uint8_t bit )
+{
+    uint8_t mask ;
+    bool ret ;
+    
+    mask = 0x01 ;
+    mask <<= bit ;
+    
+    ret = ( data & mask ) ? ( true ) : ( false ) ;
+    
+    return( ret ) ;
+}
+
+bool Core::isBitSet( uint16_t data , uint8_t bit )
+{
+    uint16_t mask ;
+    bool ret ;
+    
+    mask = 0x0001 ;
+    mask <<= bit ;
+    
+    ret = ( data & mask ) ? ( true ) : ( false ) ;
+    
+    return( ret ) ;
+}
 
 Core::Core()
 {
@@ -146,10 +171,33 @@ void Core::interrupt( void )
 
 void Core::run( Flash * flashObj , Ram * ramObj )
 {
+    /**********
+     *
+     *  - -- --- ---------------------------------------------- --- -- -
+     *              DATA BUS
+     *  - -- --- ----+ +--------+ +---------/ \---------/ \---- --- -- - 
+     *               | |        | |        /   \       /   \
+     *             +-+ +-+    +-+ +-+     +-+ +-+     +-+ +-+
+     *              \   /      \   /        | |         | |
+     *            +--\ /--+  +--\ /--+      | |         | |
+     *            | TMP 1 |  | TMP 2 |      | |       +-+ +-+
+     *            +--+ +--+  +--+ +--+      | |        \   /
+     *               | |        | |         | |    +----\ /----+
+     *            +--+ +--+  +--+ +--+      | |    | SFR | RAM |
+     *             \       \/       /       | |    +-----+-----+
+     *              \     ALU      /        | |    | ACC |
+     *               \            /         | |    |  B  |
+     *                +---+  +---+          | |    | PSW |
+     *                    |  |              | |    +-----+
+     *                    |  +--------------+ |
+     *                    +-------------------+
+     *
+     **********/
+    
     uint16_t addr16 , tmp16 ;
-    uint8_t addr8 , acc , tmp8 , opcode ;
+    uint8_t addr8 , tmp1 , tmp2 , opcode ;
     registerOffset_t reg ;
-    bool tmpBit ;
+    bool tmpBit , unsignedBit ;
     
     opcode = flashObj->read( pc ) ;
     switch( opcode )
@@ -195,9 +243,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
          **********/
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
-        acc = ( acc >> 1 ) | ( acc << 7 ) ;
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ( tmp1 >> 1 ) | ( tmp1 << 7 ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
         
         pc++ ;
         break ;
@@ -211,9 +259,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
          **********/
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
-        acc++ ;
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1++ ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
         
         pc++ ;
         break ;
@@ -230,9 +278,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *
          **********/
         addr8 = flashObj->read( pc + 1 ) ;
-        tmp8 = ramObj->read( addr8 ) ;
-        tmp8++ ;
-        ramObj->write( addr8 , tmp8 ) ;
+        tmp1 = ramObj->read( addr8 ) ;
+        tmp1++ ;
+        ramObj->write( addr8 , tmp1 ) ;
         
         pc += 2 ;
         break ;
@@ -255,10 +303,11 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         reg = ( registerOffset_t ) ( opcode & 0x01 ) ;
         // Read address from the register.
         addr8 = readBankedRegister( reg , ramObj ) ;
+
         // Increment the variable pointed from the register.
-        tmp8 = ramObj->read( addr8 ) ;
-        tmp8++ ;
-        ramObj->write( addr8 , tmp8 ) ;
+        tmp1 = ramObj->read( addr8 ) ;
+        tmp1++ ;
+        ramObj->write( addr8 , tmp1 ) ;
     
         pc++ ;
         break ;
@@ -286,11 +335,11 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        tmp8 = readBankedRegister( reg , ramObj ) ;
+        tmp1 = readBankedRegister( reg , ramObj ) ;
         // Increment the value.
-        tmp8++ ;
+        tmp1++ ;
         // Write value back at the Register.
-        writeBankedRegister( reg , ramObj , tmp8 ) ;
+        writeBankedRegister( reg , ramObj , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -335,7 +384,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *
          **********/
         addr16   = ( uint16_t ) flashObj->read( pc + 1 ) ;
-        addr16 <<= 3 ;
+        addr16 <<= 8 ;
         addr16  |= ( uint16_t ) flashObj->read( pc + 2 ) ;
         
         pc += 3 ;
@@ -365,17 +414,15 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *     +-----<-----<-----<-----<-----<-----<-----<-----<-----<-----<-----<-----+
          *
          **********/
-        acc  = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1   = ramObj->read( SFR_ADDR_ACC ) ;
         tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
         
-        tmp8 = acc ;
-        acc >>= 1 ;
-        acc  |= ( tmpBit ) ? ( 0x80 ) : ( 0x00 ) ;
+        tmp2 = tmp1 ;
+        tmp1 = ( tmp1 >> 1 ) | ( ( tmpBit ) ? ( 0x80 ) : ( 0x00 ) ) ;
         
-        tmpBit = ( tmp8 & 0x01 ) ? ( true ) : ( false ) ;
-
+        tmpBit = isBitSet( tmp2 , 0 ) ; // Check bit 0.
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
         
         pc++ ;
         break ;
@@ -389,9 +436,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
          **********/
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
-        acc-- ;
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1-- ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
         
         pc++ ;
         break ;
@@ -406,9 +453,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *
          **********/
         addr8 = flashObj->read( pc + 1 ) ;
-        tmp8 = ramObj->read( addr8 ) ;
-        tmp8-- ;
-        ramObj->write( addr8 , tmp8 ) ;
+        tmp1 = ramObj->read( addr8 ) ;
+        tmp1-- ;
+        ramObj->write( addr8 , tmp1 ) ;
         
         pc += 2 ;
         break ;
@@ -432,9 +479,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Read address from the register.
         addr8 = readBankedRegister( reg , ramObj ) ;
         // Increment the variable pointed from the register.
-        tmp8 = ramObj->read( addr8 ) ;
-        tmp8-- ;
-        ramObj->write( addr8 , tmp8 ) ;
+        tmp1 = ramObj->read( addr8 ) ;
+        tmp1-- ;
+        ramObj->write( addr8 , tmp1 ) ;
     
         pc++ ;
         break ;
@@ -461,11 +508,11 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        tmp8 = readBankedRegister( reg , ramObj ) ;
+        tmp1 = readBankedRegister( reg , ramObj ) ;
         // Decrement the value.
-        tmp8-- ;
+        tmp1-- ;
         // Write value back at the Register.
-        writeBankedRegister( reg , ramObj , tmp8 ) ;
+        writeBankedRegister( reg , ramObj , tmp1 ) ;
     
         pc++ ;
         break ;
@@ -531,17 +578,13 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *     +----->----->----->----->----->----->----->----->----->-----+
          *
          **********/
-        acc  = ramObj->read( SFR_ADDR_ACC ) ;
-        
-        tmp8 = acc ;
-        acc <<= 1 ;
-        acc  |= ( tmp8 & 0x80 ) ? ( 0x01 ) : ( 0x00 ) ;
-        
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ( tmp1 << 1 ) | ( tmp1 >> 7 ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
         
         pc++ ;
         break ;
-    // ADD A,#data
+    // ADD A , #data
     case 0x24 :
         /**********
          *
@@ -553,32 +596,146 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
          **********/
-        tmp8 = ( uint16_t ) flashObj->read( pc + 1 ) ;
-        acc  = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp2 = flashObj->read( pc + 1 ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
 
-        // Check Auxiliary Flag.
-        tmp16  = ( uint16_t ) ( tmp8 & 0x0F ) ;
-        tmp16 += ( uint16_t ) ( acc  & 0x0F ) ;
-        tmpBit = ( tmp16 & 0x10 ) ? ( true ) : ( false ) ; // Check bit 4 - 0001.0000
+        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
         
-        // Execute ADD.
-        tmp16 = ( ( uint16_t ) acc ) + ( ( uint16_t ) tmp8 )  ;
-        acc   = ( uint8_t ) tmp16 ;
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
 
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
 
-        // Check Carry Flag.
-        tmpBit = ( tmp16 & 0x0100 ) ? ( true ) : ( false ) ; // Check bit 8 - 0000.0001.0000.0000
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+
+        pc += 2 ;
+        break ;
+    // ADD A , addr8
+    case 0x25 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  0  |  0  |  1  |  0  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        addr8 = ( uint16_t ) flashObj->read( pc + 1 ) ;
+        tmp2  = ramObj->read( addr8 ) ;
+        tmp1  = ramObj->read( SFR_ADDR_ACC ) ;
+
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
                                 
         pc += 2 ;
         break ;
-    case 0x25 :
-        break ;
+    // ADD A , @Rx
     case 0x26 :
-        break ;
     case 0x27 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  0  |  0  |  1  |  1  |  x  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                                                   \_ _/
+         *                                                     |
+         *                                                     +--> Register
+         *
+         **********/
+
+        // Check with register will be used.
+        reg = ( registerOffset_t ) ( opcode & 0x01 ) ;
+        // Read address from the register.
+        addr8 = readBankedRegister( reg , ramObj ) ;
+        // Increment the variable pointed from the register.
+        tmp2 = ramObj->read( addr8 ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+                                
+        pc++ ;
         break ;
     case 0x28 :
         break ;
@@ -628,51 +785,58 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     case 0x40 :
         break ;
-    // ORL address,A
+    // ORL addr8 , A
     case 0x42 :
         /**********
          *
          *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  1  |  0  |  0  |  0  |  0  |  1  |  0  |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  0  |  0  |  0  |  0  |  1  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
          **********/
         // Read address.
         addr8 = flashObj->read( pc + 1 ) ;
         // Read data from this address.
-        tmp8 = ramObj->read( addr8 ) ;
+        tmp2 = ramObj->read( addr8 ) ;
         // Read ACC.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         // Execute OR logic.
-        tmp8 = tmp8 | acc ;
+        tmp2 = tmp2 | tmp1 ;
         // Write data at the address.
-        ramObj->write( addr8 , tmp8 ) ;
+        ramObj->write( addr8 , tmp2 ) ;
     
         pc += 2 ;
         break ;
-    // ORL address,#data
+    // ORL addr8 , #data
     case 0x43 :
         /**********
          *
          *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  1  |  0  |  0  |  0  |  0  |  1  |  1  |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  0  |  0  |  0  |  0  |  1  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
          **********/
         // Read address.
         addr8 = flashObj->read( pc + 1 ) ;
         // Read data from this address.
-        tmp8 = ramObj->read( addr8 ) ;
+        tmp2 = ramObj->read( addr8 ) ;
+        tmp1 = flashObj->read( pc + 2 ) ;
         // Execute OR logic.
-        tmp8 = tmp8 | flashObj->read( pc + 2 ) ;
+        tmp2 = tmp2 | tmp1 ;
         // Write data at the address.
-        ramObj->write( addr8 , tmp8 ) ;
+        ramObj->write( addr8 , tmp2 ) ;
     
         pc += 3 ;
         break ;
-    // ORL A,#DATA
+    // ORL A , #data
     case 0x44 :
         /**********
          *
@@ -683,13 +847,13 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *
          **********/
         // Read data.
-        tmp8 = flashObj->read( pc + 1 ) ;
+        tmp2 = flashObj->read( pc + 1 ) ;
         // Read ACC.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         // Execute OR logic.
-        acc = acc | tmp8 ;
+        tmp1 = tmp1 | tmp2 ;
         // Write data at the address.
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
         pc += 2 ;
         break ;
@@ -706,13 +870,13 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Read address.
         addr8 = flashObj->read( pc + 1 ) ;
         // Read data from this address.
-        tmp8 = ramObj->read( addr8 ) ;
+        tmp2 = ramObj->read( addr8 ) ;
         // Read ACC.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         // Execute OR logic.
-        acc = acc | tmp8 ;
+        tmp1 = tmp1 | tmp2 ;
         // Write data at the address.
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
         pc += 2 ;
         break ;
@@ -736,14 +900,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Read address from the register.
         addr8 = readBankedRegister( reg , ramObj ) ;
         // Increment the variable pointed from the register.
-        tmp8 = ramObj->read( addr8 ) ;
+        tmp2 = ramObj->read( addr8 ) ;
         // Read ACC.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Execute OR operation.
-        acc = acc | tmp8 ;
+        tmp1 = tmp1 | tmp2 ;
 
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
         pc++ ;
         break ;
@@ -770,15 +934,15 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        tmp8 = readBankedRegister( reg , ramObj ) ;
+        tmp2 = readBankedRegister( reg , ramObj ) ;
         // Read ACC value.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Execute OR logic.
-        acc = acc | tmp8 ;
+        tmp1 = tmp1 | tmp2 ;
         
         // Save ACC value at SFR.
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -812,14 +976,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Read address from the register.
         addr8 = readBankedRegister( reg , ramObj ) ;
         // Increment the variable pointed from the register.
-        tmp8 = ramObj->read( addr8 ) ;
+        tmp2 = ramObj->read( addr8 ) ;
         // Read ACC.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Execute AND operation.
-        acc = acc & tmp8 ;
+        tmp1 = tmp1 & tmp2 ;
 
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
         pc++ ;
         break ;
@@ -846,15 +1010,15 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        tmp8 = readBankedRegister( reg , ramObj ) ;
+        tmp2 = readBankedRegister( reg , ramObj ) ;
         // Read ACC value.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Execute AND logic.
-        acc = acc & tmp8 ;
+        tmp1 = tmp1 & tmp2 ;
         
         // Save ACC value at SFR.
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -888,14 +1052,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Read address from the register.
         addr8 = readBankedRegister( reg , ramObj ) ;
         // Increment the variable pointed from the register.
-        tmp8 = ramObj->read( addr8 ) ;
+        tmp2 = ramObj->read( addr8 ) ;
         // Read ACC.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Execute XOR operation.
-        acc = acc ^ tmp8 ;
+        tmp1 = tmp1 ^ tmp2 ;
 
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
         pc++ ;
         break ;
@@ -923,16 +1087,16 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        tmp8 = readBankedRegister( reg , ramObj ) ;
+        tmp2 = readBankedRegister( reg , ramObj ) ;
 
         // Read ACC value.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Execute XOR logic.
-        acc = acc ^ tmp8 ;
+        tmp1 = tmp1 ^ tmp2 ;
         
         // Save ACC value at SFR.
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -967,9 +1131,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         addr8 = readBankedRegister( reg , ramObj ) ;
 
         // Read constant value.
-        tmp8 = flashObj->read( pc + 1 ) ;
+        tmp2 = flashObj->read( pc + 1 ) ;
 
-        ramObj->write( addr8 , tmp8 ) ;
+        ramObj->write( addr8 , tmp2 ) ;
     
         pc += 2 ;
         break ;
@@ -997,10 +1161,10 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
     
         // Read constant value.
-        tmp8 = flashObj->read( pc + 1 ) ;
+        tmp2 = flashObj->read( pc + 1 ) ;
         
         // Write value back at the Register.
-        writeBankedRegister( reg , ramObj , tmp8 ) ;
+        writeBankedRegister( reg , ramObj , tmp2 ) ;
 
         pc += 2 ;
         break ;
@@ -1173,15 +1337,15 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        tmp8 = readBankedRegister( reg , ramObj ) ;
+        tmp2 = readBankedRegister( reg , ramObj ) ;
         // Read ACC value.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
 
         // Save Register value in the ACC.
-        ramObj->write( SFR_ADDR_ACC , tmp8 ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp2 ) ;
 
         // Write value back at the Register.
-        writeBankedRegister( reg , ramObj , acc ) ;
+        writeBankedRegister( reg , ramObj , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -1284,9 +1448,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         // Read data from the register.
-        acc = readBankedRegister( reg , ramObj ) ;
+        tmp1 = readBankedRegister( reg , ramObj ) ;
         // Save ACC value at SFR.
-        ramObj->write( SFR_ADDR_ACC , acc ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -1366,10 +1530,10 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
         
         // Read ACC value.
-        acc = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
         
         // Write value back at the Register.
-        writeBankedRegister( reg , ramObj , acc ) ;
+        writeBankedRegister( reg , ramObj , tmp1 ) ;
 
         pc++ ;
         break ;
@@ -1382,6 +1546,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
      * to indicate an odd/even number of 1 bits in the accumulator.
      *
      **********/
-    tmpBit = parity( acc ) ;
+    tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+    tmpBit = parity( tmp1 ) ;
     ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 }
