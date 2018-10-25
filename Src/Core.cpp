@@ -543,12 +543,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     // RET
     case 0x22 :
+    // RETI
+    case 0x32 :
         /**********
          *
          *           7     6     5     4     3     2     1     0
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  0  |  1  |  0  |  0  |  0  |  1  |  0  |
+         * Opcode |  0  |  0  |  1  |  x  |  0  |  0  |  1  |  0  |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/
+         *                             |
+         *                             +--------------------------> RET (0) or RETI (1)
          *
          **********/
         addr8 = ramObj->read( SFR_ADDR_SP ) ;
@@ -797,9 +802,30 @@ void Core::run( Flash * flashObj , Ram * ramObj )
                                 
         pc++ ;
         break ;
+    // JNB bitAddr8 , offset8
     case 0x30 :
-        break ;
-    case 0x32 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  1  |  0  |  0  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        addr8  = flashObj->read( pc + 1 ) ;
+        addr16 = ( uint16_t ) flashObj->read( pc + 2 ) ;
+        
+        pc += 3 ;
+
+        tmpBit = ramObj->readBit( addr8 ) ;
+        if( tmpBit == false )
+        {
+            pc += addr16 ;
+        }
         break ;
     case 0x33 :
         break ;
