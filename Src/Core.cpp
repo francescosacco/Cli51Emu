@@ -737,21 +737,65 @@ void Core::run( Flash * flashObj , Ram * ramObj )
                                 
         pc++ ;
         break ;
+    // ADD A , Rx
     case 0x28 :
-        break ;
     case 0x29 :
-        break ;
     case 0x2A :
-        break ;
     case 0x2B :
-        break ;
     case 0x2C :
-        break ;
     case 0x2D :
-        break ;
     case 0x2E :
-        break ;
     case 0x2F :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  0  |  1  |  x  |  x  |  x  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                                       \_______ _______/
+         *                                               |
+         *                                               +--------> Register
+         *
+         **********/
+
+        // Check with register will be used.
+        reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
+        // Read data from the register.
+        tmp2 = readBankedRegister( reg , ramObj ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+                                
+        pc++ ;
         break ;
     case 0x30 :
         break ;
