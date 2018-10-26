@@ -954,14 +954,6 @@ void Core::run( Flash * flashObj , Ram * ramObj )
                                 
         pc++ ;
         break ;
-    
-    
-    
-    
-    
-        break ;
-    case 0x40 :
-        break ;
     // ORL addr8 , A
     case 0x42 :
         /**********
@@ -1123,7 +1115,36 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc++ ;
         break ;
+    // JC offset8
+    case 0x40 :
+    // JNC offset8
     case 0x50 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  0  |  x  |  0  |  0  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/
+         *                             |
+         *                             +--------------------------> 40h - JC
+         *                                                          50h - JNC
+         *
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        addr16 = ( uint16_t ) flashObj->read( pc + 1 ) ;
+        
+        pc += 2 ;
+
+        // Test if opcode JC or JNC respectively.
+        tmpBit = ( isBitSet( opcode , 4 ) == false ) ? ramObj->readBit( SFR_ADDR_PSW_C ) : !ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        if( tmpBit )
+        {
+            pc += addr16 ;
+        }
         break ;
     case 0x52 :
         break ;
