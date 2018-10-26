@@ -589,219 +589,6 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         
         pc++ ;
         break ;
-    // ADD A , #data
-    case 0x24 :
-        /**********
-         *
-         *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  0  |  1  |  0  |  0  |  1  |  0  |  0  |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *
-         **********/
-        tmp2 = flashObj->read( pc + 1 ) ;
-        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
-        
-        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
-
-        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
-        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
-        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
-        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 4 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
-        
-        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
-        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
-        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
-
-        if( unsignedBit )
-        {
-            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
-        }
-        else
-        {
-            tmpBit = isBitSet( tmp16 , 7 ) ;
-            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
-        }
-
-        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 8 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
-
-        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
-
-        pc += 2 ;
-        break ;
-    // ADD A , addr8
-    case 0x25 :
-        /**********
-         *
-         *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  0  |  1  |  0  |  0  |  1  |  0  |  1  |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *
-         **********/
-        addr8 = ( uint16_t ) flashObj->read( pc + 1 ) ;
-        tmp2  = ramObj->read( addr8 ) ;
-        tmp1  = ramObj->read( SFR_ADDR_ACC ) ;
-
-        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
-
-        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
-        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
-        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
-        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 4 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
-        
-        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
-        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
-        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
-
-        if( unsignedBit )
-        {
-            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
-        }
-        else
-        {
-            tmpBit = isBitSet( tmp16 , 7 ) ;
-            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
-        }
-
-        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 8 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
-
-        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
-                                
-        pc += 2 ;
-        break ;
-    // ADD A , @Rx
-    case 0x26 :
-    case 0x27 :
-        /**********
-         *
-         *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  0  |  1  |  0  |  0  |  1  |  1  |  x  |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *                                                   \_ _/
-         *                                                     |
-         *                                                     +--> Register
-         *
-         **********/
-
-        // Check with register will be used.
-        reg = ( registerOffset_t ) ( opcode & 0x01 ) ;
-        // Read address from the register.
-        addr8 = readBankedRegister( reg , ramObj ) ;
-        // Increment the variable pointed from the register.
-        tmp2 = ramObj->read( addr8 ) ;
-        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
-
-        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
-
-        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
-        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
-        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
-        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 4 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
-        
-        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
-        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
-        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
-
-        if( unsignedBit )
-        {
-            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
-        }
-        else
-        {
-            tmpBit = isBitSet( tmp16 , 7 ) ;
-            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
-        }
-
-        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 8 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
-
-        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
-                                
-        pc++ ;
-        break ;
-    // ADD A , Rx
-    case 0x28 :
-    case 0x29 :
-    case 0x2A :
-    case 0x2B :
-    case 0x2C :
-    case 0x2D :
-    case 0x2E :
-    case 0x2F :
-        /**********
-         *
-         *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  0  |  1  |  0  |  1  |  x  |  x  |  x  |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *                                       \_______ _______/
-         *                                               |
-         *                                               +--------> Register
-         *
-         **********/
-
-        // Check with register will be used.
-        reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
-        // Read data from the register.
-        tmp2 = readBankedRegister( reg , ramObj ) ;
-        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
-
-        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
-
-        tmp16  = ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
-        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
-        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
-        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 4 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
-        
-        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
-        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
-        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
-
-        if( unsignedBit )
-        {
-            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
-        }
-        else
-        {
-            tmpBit = isBitSet( tmp16 , 7 ) ;
-            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
-        }
-
-        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
-        
-        tmpBit = isBitSet( tmp16 , 8 ) ;
-        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
-
-        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
-                                
-        pc++ ;
-        break ;
     // JNB bitAddr8 , offset8
     case 0x30 :
         /**********
@@ -857,13 +644,21 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc++ ;
         break ;
+    // ADD A , #data
+    case 0x24 :
     // ADDC A , #data
     case 0x34 :
         /**********
          *
          *           7     6     5     4     3     2     1     0
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  0  |  1  |  1  |  0  |  1  |  0  |  0  |
+         * Opcode |  0  |  0  |  1  |  x  |  0  |  1  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/
+         *                             |
+         *                             +---------------------------> Opcode 24h = ADD
+         *                                                                  34h = ADDC
+         *
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
@@ -874,9 +669,21 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         
         unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
 
-        // We start calculation with Carry Flag.
-        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
-        tmp16 = ( tmpBit ) ? ( 0x0001 ) : ( 0x0000 ) ;
+        // Is ADDC opcode?
+        tmpBit = isBitSet( opcode , 4 ) ;
+        if( tmpBit )
+        {
+            // Yes, opcode ADDC.
+
+            // We start calculation with Carry Flag.
+            tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+            tmp16 = ( tmpBit ) ? ( 0x0001 ) : ( 0x0000 ) ;
+        }
+        else
+        {
+            // No, opcode ADD.
+            tmp16 = 0x0000 ;
+        }
 
         tmp16 += ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
         tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
@@ -909,27 +716,249 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc += 2 ;
         break ;
+    // ADD A , addr8
+    case 0x25 :
+    // ADDC A , addr8
     case 0x35 :
         break ;
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  x  |  0  |  1  |  0  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/
+         *                             |
+         *                             +---------------------------> Opcode 25h = ADD
+         *                                                                  35h = ADDC
+         *
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        addr8 = ( uint16_t ) flashObj->read( pc + 1 ) ;
+        tmp2  = ramObj->read( addr8 ) ;
+        tmp1  = ramObj->read( SFR_ADDR_ACC ) ;
+
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        // Is ADDC opcode?
+        tmpBit = isBitSet( opcode , 4 ) ;
+        if( tmpBit )
+        {
+            // Yes, opcode ADDC.
+
+            // We start calculation with Carry Flag.
+            tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+            tmp16 = ( tmpBit ) ? ( 0x0001 ) : ( 0x0000 ) ;
+        }
+        else
+        {
+            // No, opcode ADD.
+            tmp16 = 0x0000 ;
+        }
+
+        tmp16 += ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+                                
+        pc += 2 ;
+        break ;
+    // ADD A , @Rx
+    case 0x26 :
+    case 0x27 :
+    // ADDC A , @Rx
     case 0x36 :
-        break ;
     case 0x37 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  x  |  0  |  1  |  1  |  x  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/                   \_ _/
+         *                             |                       |
+         *                             |                       +--> Register
+         *                             +--------------------------> Opcode 26h/27h = ADD
+         *                                                                 36h/37h = ADDC
+         *
+         **********/
+
+        // Check with register will be used.
+        reg = ( registerOffset_t ) ( opcode & 0x01 ) ;
+        // Read address from the register.
+        addr8 = readBankedRegister( reg , ramObj ) ;
+        // Increment the variable pointed from the register.
+        tmp2 = ramObj->read( addr8 ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        // Is ADDC opcode?
+        tmpBit = isBitSet( opcode , 4 ) ;
+        if( tmpBit )
+        {
+            // Yes, opcode ADDC.
+
+            // We start calculation with Carry Flag.
+            tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+            tmp16 = ( tmpBit ) ? ( 0x0001 ) : ( 0x0000 ) ;
+        }
+        else
+        {
+            // No, opcode ADD.
+            tmp16 = 0x0000 ;
+        }
+
+        tmp16 += ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+                                
+        pc++ ;
         break ;
+    // ADD A , Rx
+    case 0x28 :
+    case 0x29 :
+    case 0x2A :
+    case 0x2B :
+    case 0x2C :
+    case 0x2D :
+    case 0x2E :
+    case 0x2F :
+    // ADDC A , Rx
     case 0x38 :
-        break ;
     case 0x39 :
-        break ;
     case 0x3A :
-        break ;
     case 0x3B :
-        break ;
     case 0x3C :
-        break ;
     case 0x3D :
-        break ;
     case 0x3E :
-        break ;
     case 0x3F :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  x  |  1  |  x  |  x  |  x  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/       \_______ _______/
+         *                             |                 |
+         *                             |                 +--------> Register
+         *                             +--------------------------> Opcode 28h ~ 2Fh = ADD
+         *                                                                 38h ~ 3Fh = ADDC
+         *
+         **********/
+
+        // Check with register will be used.
+        reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
+        // Read data from the register.
+        tmp2 = readBankedRegister( reg , ramObj ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        // Is ADDC opcode?
+        tmpBit = isBitSet( opcode , 4 ) ;
+        if( tmpBit )
+        {
+            // Yes, opcode ADDC.
+
+            // We start calculation with Carry Flag.
+            tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+            tmp16 = ( tmpBit ) ? ( 0x0001 ) : ( 0x0000 ) ;
+        }
+        else
+        {
+            // No, opcode ADD.
+            tmp16 = 0x0000 ;
+        }
+
+        tmp16 += ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+                                
+        pc++ ;
+        break ;
+    
+    
+    
+    
+    
         break ;
     case 0x40 :
         break ;
