@@ -827,9 +827,87 @@ void Core::run( Flash * flashObj , Ram * ramObj )
             pc += addr16 ;
         }
         break ;
+    // RLC A
     case 0x33 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  1  |  0  |  0  |  1  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         *
+         *              7     6     5     4     3     2     1     0
+         *           +-----+-----+-----+-----+-----+-----+-----+-----+     +-----+
+         * ACC +--<--+  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 +--<--+  C  +--<--+
+         *     |     +-----+-----+-----+-----+-----+-----+-----+-----+     +-----+     |
+         *     |                                                                       |
+         *     +----->----->----->----->----->----->----->----->----->----->----->-----+
+         *
+         **********/
+        tmp1   = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        
+        tmp2 = tmp1 ;
+        tmp1 = ( tmp1 << 1 ) | ( ( tmpBit ) ? ( 0x01 ) : ( 0x00 ) ) ;
+        
+        tmpBit = isBitSet( tmp2 , 7 ) ; // Check bit 0.
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+
+        pc++ ;
         break ;
+    // ADDC A , #data
     case 0x34 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  0  |  1  |  1  |  0  |  1  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        tmp2 = flashObj->read( pc + 1 ) ;
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        
+        unsignedBit = isBitSet( tmp1 , 7 ) || isBitSet( tmp1 , 7 ) ;
+
+        // We start calculation with Carry Flag.
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        tmp16 = ( tmpBit ) ? ( 0x0001 ) : ( 0x0000 ) ;
+
+        tmp16 += ( tmp1 & 0x01 ) + ( tmp2 & 0x01 ) ;
+        tmp16 += ( tmp1 & 0x02 ) + ( tmp2 & 0x02 ) ;
+        tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
+        tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 4 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
+        
+        tmp16 += ( tmp1 & 0x10 ) + ( tmp2 & 0x10 ) ;
+        tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
+        tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
+
+        if( unsignedBit )
+        {
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+        else
+        {
+            tmpBit = isBitSet( tmp16 , 7 ) ;
+            ramObj->writeBit( SFR_ADDR_PSW_OV , tmpBit ) ;
+        }
+
+        tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
+        
+        tmpBit = isBitSet( tmp16 , 8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+
+        pc += 2 ;
         break ;
     case 0x35 :
         break ;
