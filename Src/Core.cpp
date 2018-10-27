@@ -1315,30 +1315,6 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc++ ;
         break ;
-    // JZ offset
-    case 0x60 :
-        /**********
-         *
-         *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  1  |  1  |  0  |  0  |  0  |  0  |  0  |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+
-         *
-         **********/
-        addr16 = ( uint16_t ) flashObj->read( pc + 1 ) ;
-        
-        pc += 2 ;
-
-        // Read ACC value.
-        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
-        if( tmp1 == 0x00 )
-        {
-            pc += addr16 ;
-        }
-        break ;
-
     // XRL addr8 , A
     case 0x62 :
         /**********
@@ -1506,7 +1482,38 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc++ ;
         break ;
+    // JZ offset
+    case 0x60 :
+    // JNZ offset
     case 0x70 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  1  |  x  |  0  |  0  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *                           \_ _/
+         *                             |
+         *                             +--------------------------> 60h - JZ
+         *                                                          70h - JNZ
+         *
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        addr16 = ( uint16_t ) flashObj->read( pc + 1 ) ;
+        
+        pc += 2 ;
+
+        // Read ACC value.
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        // Test if opcode JZ or JNZ respectively.
+        tmpBit = ( isBitSet( opcode , 4 ) == false ) ? ( tmp1 == 0x00 ) : ( tmp1 != 0x00 ) ;
+        if( tmp1 )
+        {
+            pc += addr16 ;
+        }
         break ;
     case 0x72 :
         break ;
