@@ -1390,9 +1390,53 @@ void Core::run( Flash * flashObj , Ram * ramObj )
     
         pc += 3 ;
         break ;
+    // XRL A , #data
     case 0x64 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  1  |  0  |  0  |  1  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        // Read data.
+        tmp2 = flashObj->read( pc + 1 ) ;
+        // Read ACC.
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        // Execute XOR logic.
+        tmp1 = tmp1 ^ tmp2 ;
+        // Write data at the address.
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+    
+        pc += 2 ;
         break ;
+    // XRL A , addr8
     case 0x65 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  1  |  0  |  0  |  1  |  0  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        // Read address.
+        addr8 = flashObj->read( pc + 1 ) ;
+        // Read data from this address.
+        tmp2 = ramObj->read( addr8 ) ;
+        // Read ACC.
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        // Execute XOR logic.
+        tmp1 = tmp1 ^ tmp2 ;
+        // Write data at the address.
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+    
+        pc += 2 ;
         break ;
     // XRL A,@Rx
     case 0x66 :
