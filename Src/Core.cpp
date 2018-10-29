@@ -1515,7 +1515,25 @@ void Core::run( Flash * flashObj , Ram * ramObj )
             pc += addr16 ;
         }
         break ;
+    // ORL C , bitAddr8
     case 0x72 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  1  |  1  |  0  |  0  |  1  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        addr8 = flashObj->read( pc + 1 ) ;
+
+        tmpBit = tmpBit || ramObj->readBit( addr8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        pc += 2 ;
         break ;
     case 0x73 :
         break ;
@@ -1583,7 +1601,25 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     case 0x80 :
         break ;
+    // ANL C , bitAddr8
     case 0x82 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  0  |  0  |  0  |  0  |  1  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        addr8 = flashObj->read( pc + 1 ) ;
+
+        tmpBit = tmpBit && ramObj->readBit( addr8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        pc += 2 ;
         break ;
     case 0x83 :
         break ;
@@ -1641,7 +1677,25 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     case 0x9F :
         break ;
+    // ORL C , /bitAddr8
     case 0xA0 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  1  |  0  |  0  |  0  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        addr8 = flashObj->read( pc + 1 ) ;
+
+        tmpBit = tmpBit || !ramObj->readBit( addr8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        pc += 2 ;
         break ;
     case 0xA2 :
         break ;
@@ -1682,7 +1736,25 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     case 0xAF :
         break ;
+    // ANL C , /bitAddr8
     case 0xB0 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  1  |  1  |  0  |  0  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
+        addr8 = flashObj->read( pc + 1 ) ;
+
+        tmpBit = tmpBit && !ramObj->readBit( addr8 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
+
+        pc += 2 ;
         break ;
     case 0xB2 :
         break ;
