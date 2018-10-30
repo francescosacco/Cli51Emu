@@ -1651,7 +1651,23 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc += 2 ;
         break ;
+    // SJMP offset
     case 0x80 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        addr16 = ( uint16_t ) flashObj->read( pc + 1 ) ;
+        
+        pc += 2 ;
+        pc += addr16 ;
+
         break ;
     // ANL C , bitAddr8
     case 0x82 :
@@ -1673,7 +1689,25 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc += 2 ;
         break ;
+    // MOVC A,@A+PC
     case 0x83 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  0  |  0  |  0  |  0  |  1  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        // Load PC.
+        addr16  = pc ;
+        // Add ACC.
+        addr16 += ( uint16_t ) ramObj->read( SFR_ADDR_ACC ) ;
+
+        tmp1 = flashObj->read( addr16 ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+        
+        pc++ ;
         break ;
     case 0x84 :
         break ;
@@ -1703,7 +1737,29 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         break ;
     case 0x92 :
         break ;
+    // MOVC A,@A+DPTR
     case 0x93 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  0  |  1  |  0  |  0  |  1  |  1  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+        // Load DPTR.
+        addr16   = ( uint16_t ) ramObj->read( SFR_ADDR_DPH ) ;
+        addr16 <<= 8 ;
+        addr16  |= ( uint16_t ) ramObj->read( SFR_ADDR_DPL ) ;
+        
+        // Add ACC.
+        addr16 += ( uint16_t ) ramObj->read( SFR_ADDR_ACC ) ;
+
+        tmp1 = flashObj->read( addr16 ) ;
+        ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+        
+        pc++ ;
+        break ;
         break ;
     case 0x94 :
         break ;
