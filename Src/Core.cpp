@@ -1709,7 +1709,44 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         
         pc++ ;
         break ;
+    // DIV AB
     case 0x84 :
+        /**********
+         *
+         *           7     6     5     4     3     2     1     0
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  1  |  0  |  0  |  0  |  0  |  1  |  0  |  0  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         **********/
+
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmp2 = ramObj->read( SFR_ADDR_B   ) ;
+        
+        // Is B iqual zero?
+        if( tmp2 == 0x00 )
+        {
+            // Yes, so it's an error.
+            ramObj->write( SFR_ADDR_ACC , 0x00 ) ;
+            ramObj->write( SFR_ADDR_B   , 0x00 ) ;
+            
+            ramObj->writeBit( SFR_ADDR_PSW_OV , true ) ;
+        }
+        else
+        {
+            // No, so it's possible to divide.
+            tmp16 = ( uint16_t ) ( tmp1 / tmp2 ) ;
+            ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+
+            tmp16 = ( uint16_t ) ( tmp1 % tmp2 ) ;
+            ramObj->write( SFR_ADDR_B   , ( uint8_t ) tmp16 ) ;
+            
+            ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
+        }
+
+        ramObj->writeBit( SFR_ADDR_PSW_C , false ) ;
+
+        pc++ ;
         break ;
     case 0x85 :
         break ;
