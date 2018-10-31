@@ -15,7 +15,7 @@ class Core
         
         bool isBitSet( uint8_t data , uint8_t bit ) ;
         bool isBitSet( uint16_t data , uint8_t bit ) ;
-    
+        
     public :
         Core() ;
         ~Core() ;
