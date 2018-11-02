@@ -723,11 +723,14 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *                             |
          *                             +---------------------------> Opcode 24h = ADD
          *                                                                  34h = ADDC
-         *
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: Carry.
+         *        Auxiliary Carry.
+         *        Overflow.
+         *        Parity.
          *
          **********/
         tmp2 = flashObj->read( pc + 1 ) ;
@@ -756,6 +759,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
         tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
         
+        // Check AC flag.
         tmpBit = isBitSet( tmp16 , 4 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
         
@@ -763,6 +767,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
         tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
 
+        // Check OV flag.
         if( unsignedBit )
         {
             ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
@@ -775,10 +780,22 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
         
+        // Check Carry Flag.
         tmpBit = isBitSet( tmp16 , 8 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
 
         ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 
         pc += 2 ;
         break ;
@@ -801,6 +818,11 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: Carry.
+         *        Auxiliary Carry.
+         *        Overflow.
+         *        Parity.
          *
          **********/
         addr8 = ( uint16_t ) flashObj->read( pc + 1 ) ;
@@ -830,6 +852,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
         tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
         
+        // Check AC Flag.
         tmpBit = isBitSet( tmp16 , 4 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
         
@@ -837,6 +860,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
         tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
 
+        // Check OV Flag.
         if( unsignedBit )
         {
             ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
@@ -849,11 +873,23 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
         
+        // Check Carry Flag.
         tmpBit = isBitSet( tmp16 , 8 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
 
         ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
                                 
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+
         pc += 2 ;
         break ;
     // ADD A , @Rx
@@ -873,6 +909,11 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *                             |                       +--> Register
          *                             +--------------------------> Opcode 26h/27h = ADD
          *                                                                 36h/37h = ADDC
+         *
+         * Flags: Carry.
+         *        Auxiliary Carry.
+         *        Overflow.
+         *        Parity.
          *
          **********/
 
@@ -907,6 +948,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
         tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
         
+        // Check AC Flag.
         tmpBit = isBitSet( tmp16 , 4 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
         
@@ -914,6 +956,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
         tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
 
+        // Check OV Flag.
         if( unsignedBit )
         {
             ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
@@ -926,11 +969,23 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
         
+        // Check Carry Flag.
         tmpBit = isBitSet( tmp16 , 8 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
 
         ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
                                 
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+
         pc++ ;
         break ;
     // ADD A , Rx
@@ -962,6 +1017,10 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *                             |                 +--------> Register
          *                             +--------------------------> Opcode 28h ~ 2Fh = ADD
          *                                                                 38h ~ 3Fh = ADDC
+         * Flags: Carry.
+         *        Auxiliary Carry.
+         *        Overflow.
+         *        Parity.
          *
          **********/
 
@@ -994,6 +1053,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x04 ) + ( tmp2 & 0x04 ) ;
         tmp16 += ( tmp1 & 0x08 ) + ( tmp2 & 0x08 ) ;
         
+        // Check AC Flag.
         tmpBit = isBitSet( tmp16 , 4 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_AC , tmpBit ) ;
         
@@ -1001,6 +1061,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp16 += ( tmp1 & 0x20 ) + ( tmp2 & 0x20 ) ;
         tmp16 += ( tmp1 & 0x40 ) + ( tmp2 & 0x40 ) ;
 
+        // Check OV Flag.
         if( unsignedBit )
         {
             ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
@@ -1012,12 +1073,24 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         }
 
         tmp16 += ( tmp1 & 0x80 ) + ( tmp2 & 0x80 ) ;
-        
+
+        // Check Carry Flag.
         tmpBit = isBitSet( tmp16 , 8 ) ;
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
 
         ramObj->write( SFR_ADDR_ACC , ( uint8_t ) tmp16 ) ;
-                                
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+        
         pc++ ;
         break ;
     // ORL addr8 , A
