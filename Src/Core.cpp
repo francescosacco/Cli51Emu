@@ -667,6 +667,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: None.
+         *
          **********/
         addr8  = flashObj->read( pc + 1 ) ;
         addr16 = ( uint16_t ) flashObj->read( pc + 2 ) ;
@@ -696,6 +698,9 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *     |                                                                       |
          *     +----->----->----->----->----->----->----->----->----->----->----->-----+
          *
+         * Flags: Parity
+         *        Carry
+         *
          **********/
         tmp1   = ramObj->read( SFR_ADDR_ACC ) ;
         tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
@@ -706,6 +711,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmpBit = isBitSet( tmp2 , 7 ) ; // Check bit 0.
         ramObj->writeBit( SFR_ADDR_PSW_C , tmpBit ) ;
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 
         pc++ ;
         break ;
@@ -1104,6 +1120,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: None.
+         *
          **********/
         // Read address.
         addr8 = flashObj->read( pc + 1 ) ;
@@ -1131,6 +1149,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: None.
+         *
          **********/
         // Read address.
         addr8 = flashObj->read( pc + 1 ) ;
@@ -1155,6 +1175,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: Parity.
+         *
          **********/
         // Read data.
         tmp2 = flashObj->read( pc + 1 ) ;
@@ -1164,7 +1186,18 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp1 = tmp1 | tmp2 ;
         // Write data at the address.
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
-    
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+
         pc += 2 ;
         break ;
     // ORL A , addr8
@@ -1178,6 +1211,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: Parity.
+         *
          **********/
         // Read address.
         addr8 = flashObj->read( pc + 1 ) ;
@@ -1190,6 +1225,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         // Write data at the address.
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+
         pc += 2 ;
         break ;
     // ORL A,@Rx
@@ -1204,6 +1250,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *                                                   \_ _/
          *                                                     |
          *                                                     +--> Register
+         * Flags: Parity.
          *
          **********/
 
@@ -1221,6 +1268,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
     
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+
         pc++ ;
         break ;
     // ORL A,Rx
@@ -1242,6 +1300,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *                                               |
          *                                               +--------> Register
          *
+         * Flags: Parity.
+         *
          **********/
         // Check with register will be used.
         reg = ( registerOffset_t ) ( opcode & 0x07 ) ;
@@ -1255,6 +1315,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         
         // Save ACC value at SFR.
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 
         pc++ ;
         break ;
@@ -1276,6 +1347,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: None.
          *
          **********/
         addr16 = ( uint16_t ) flashObj->read( pc + 1 ) ;
