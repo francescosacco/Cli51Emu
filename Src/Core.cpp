@@ -1850,6 +1850,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: Carry.
+         *
          **********/
         tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
         addr8 = flashObj->read( pc + 1 ) ;
@@ -1867,6 +1869,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          * Opcode |  0  |  1  |  1  |  1  |  0  |  0  |  1  |  1  |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: None.
          *
          **********/
 
@@ -1891,9 +1895,22 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: Parity.
+         *
          **********/
         tmp1 = flashObj->read( pc + 1 ) ;
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 
         pc += 2 ;
         break ;
@@ -1910,6 +1927,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: None.
+         *
          **********/
         addr8 = flashObj->read( pc + 1 ) ;
         tmp1  = flashObj->read( pc + 2 ) ;
@@ -1917,18 +1936,23 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc += 3 ;
         break ;
-    // MOV @Rx,#data
+    // MOV @Rx , #data
     case 0x76 :
     case 0x77 :
         /**********
          *
          *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  1  |  0  |  0  |  0  |  1  |  1  |  x  |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  0  |  0  |  0  |  1  |  1  |  x  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *                                                   \_ _/
          *                                                     |
          *                                                     +--> Register
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: None.
          *
          **********/
 
@@ -1944,7 +1968,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
     
         pc += 2 ;
         break ;
-    // MOV Rx,#DATA
+    // MOV Rx , #data
     case 0x78 :
     case 0x79 :
     case 0x7A :
@@ -1956,12 +1980,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         /**********
          *
          *           7     6     5     4     3     2     1     0
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
-         * Opcode |  0  |  1  |  1  |  1  |  1  |  x  |  x  |  x  |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
-         *        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         * Opcode |  0  |  1  |  1  |  1  |  1  |  x  |  x  |  x  |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *                                       \_______ _______/
          *                                               |
          *                                               +--------> Register
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *        |  D7 |  D6 |  D5 |  D4 |  D3 |  D2 |  D1 |  D0 |
+         *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: None.
          *
          **********/
         // Check with register will be used.
@@ -1986,6 +2015,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  O7 |  O6 |  O5 |  O4 |  O3 |  O2 |  O1 |  O0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: None.
+         *
          **********/
         addr16 = ( uint16_t ) flashObj->read( pc + 1 ) ;
         
@@ -2004,6 +2035,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *
+         * Flags: Carry.
+         *
          **********/
         tmpBit = ramObj->readBit( SFR_ADDR_PSW_C ) ;
         addr8 = flashObj->read( pc + 1 ) ;
@@ -2013,7 +2046,7 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
         pc += 2 ;
         break ;
-    // MOVC A,@A+PC
+    // MOVC A , @A+PC
     case 0x83 :
         /**********
          *
@@ -2021,6 +2054,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          * Opcode |  1  |  0  |  0  |  0  |  0  |  0  |  1  |  1  |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: Parity.
          *
          **********/
         // Load PC.
@@ -2031,6 +2066,17 @@ void Core::run( Flash * flashObj , Ram * ramObj )
         tmp1 = flashObj->read( addr16 ) ;
         ramObj->write( SFR_ADDR_ACC , tmp1 ) ;
         
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
+
         pc++ ;
         break ;
     // DIV AB
@@ -2041,6 +2087,10 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          * Opcode |  1  |  0  |  0  |  0  |  0  |  1  |  0  |  0  |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: Carry.
+         *        Overflow.
+         *        Parity.
          *
          **********/
 
@@ -2053,7 +2103,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
             // Yes, so it's an error.
             ramObj->write( SFR_ADDR_ACC , 0x00 ) ;
             ramObj->write( SFR_ADDR_B   , 0x00 ) ;
-            
+
+            // Set OV Flag.
             ramObj->writeBit( SFR_ADDR_PSW_OV , true ) ;
         }
         else
@@ -2064,11 +2115,24 @@ void Core::run( Flash * flashObj , Ram * ramObj )
 
             tmp16 = ( uint16_t ) ( tmp1 % tmp2 ) ;
             ramObj->write( SFR_ADDR_B   , ( uint8_t ) tmp16 ) ;
-            
+
+            // Reset OV Flag.
             ramObj->writeBit( SFR_ADDR_PSW_OV , false ) ;
         }
 
+        // Reset Carry Flag.
         ramObj->writeBit( SFR_ADDR_PSW_C , false ) ;
+
+        /**********
+         *
+         * Parity Flag.
+         * Set/Cleared by hardware each instruction cycle
+         * to indicate an odd/even number of 1 bits in the accumulator.
+         *
+         **********/
+        tmp1 = ramObj->read( SFR_ADDR_ACC ) ;
+        tmpBit = parity( tmp1 ) ;
+        ramObj->writeBit( SFR_ADDR_PSW_P , tmpBit ) ;
 
         pc++ ;
         break ;
@@ -2084,6 +2148,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: None.
          *
          **********/
         // Read data from source address.
@@ -2111,6 +2177,8 @@ void Core::run( Flash * flashObj , Ram * ramObj )
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
          *        |  A7 |  A6 |  A5 |  A4 |  A3 |  A2 |  A1 |  A0 |
          *        +-----+-----+-----+-----+-----+-----+-----+-----+
+         *
+         * Flags: None.
          *
          **********/
 
